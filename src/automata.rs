@@ -21,6 +21,7 @@ struct CellSettings {
     num_cells: u32,
     dead_color: Color,
     alive_color: Color,
+    rule_num: u8,
     rule: [bool; 8],
 }
 
@@ -35,20 +36,24 @@ impl Plugin for AutomataPlugin {
         app
             .add_startup_system_to_stage(StartupStage::PostStartup ,cell_spawn_system)
             .add_system(update_cell_grid_system)
-            .add_system(color_grid_system);
+            .add_system(color_grid_system)
+            .add_system(mouse_button_input);
     }
 }
 
 fn cell_spawn_system(mut commands: Commands, win_size: Res<WinSize>) {
-    let num_cells: usize = 129;
-    let cell_size: f32 = win_size.w / num_cells as f32;
+    let num_cells: usize = 257;
+    let cell_size: f32 = win_size.w / num_cells as f32 * 2.0;
     
+    let init_rule: u8 = 30;
+
     commands.insert_resource(CellSettings {
         cell_size: cell_size,
         num_cells: num_cells as u32,
         dead_color: Color::BLACK,
         alive_color: Color::WHITE,
-        rule: get_rule(75),
+        rule_num: init_rule,
+        rule: get_rule(init_rule),
     });
 
     let mut cell_grid = CellGrid {grid: Vec::new()};
@@ -56,8 +61,8 @@ fn cell_spawn_system(mut commands: Commands, win_size: Res<WinSize>) {
     for i in 0..num_cells {
         cell_grid.grid.push(Vec::new());
         for j in 0..num_cells {
-            let x_pos =  -win_size.w / 2.0 + cell_size * i as f32;
-            let y_pos =  win_size.h / 2.0 - cell_size * j as f32;
+            let x_pos =  -win_size.w / 1.0 + cell_size * i as f32;
+            let y_pos =  win_size.h / 1.0 - cell_size * j as f32;
 
             let new_cell = Cell {
                 state: CellState::Dead,
@@ -140,4 +145,20 @@ fn get_rule(mut rule_num: u8) -> [bool; 8] {
     }
 
     return rule;
+}
+
+fn mouse_button_input (buttons: Res<Input<MouseButton>>, 
+    mut cell_settings: ResMut<CellSettings>,
+) {
+    if buttons.just_pressed(MouseButton::Right) {
+        cell_settings.rule_num -= 1;
+        cell_settings.rule = get_rule(cell_settings.rule_num);
+        println!("{}", cell_settings.rule_num);
+    }
+    
+    if buttons.just_pressed(MouseButton::Left) {
+        cell_settings.rule_num += 1;
+        cell_settings.rule = get_rule(cell_settings.rule_num);
+        println!("{}", cell_settings.rule_num);
+    }
 }
