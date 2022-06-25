@@ -37,12 +37,13 @@ impl Plugin for AutomataPlugin {
             .add_startup_system_to_stage(StartupStage::PostStartup ,cell_spawn_system)
             .add_system(update_cell_grid_system)
             .add_system(color_grid_system)
-            .add_system(mouse_button_input);
+            .add_system(mouse_button_input_system)
+            .add_system(key_press_system);
     }
 }
 
 fn cell_spawn_system(mut commands: Commands, win_size: Res<WinSize>) {
-    let num_cells: usize = 257;
+    let num_cells: usize = 129;
     let cell_size: f32 = win_size.w / num_cells as f32 * 2.0;
     
     let init_rule: u8 = 30;
@@ -100,8 +101,8 @@ fn update_cell_grid_system(mut cell_grid: ResMut<CellGrid>, cell_settings: Res<C
 
     cell_grid.grid[(num_cells / 2) as usize][0].state = CellState::Alive;
 
-    for i in 0..num_cells as usize {
-        for j in 1..num_cells as usize {
+    for j in 1..num_cells as usize {
+        for i in 0..num_cells as usize {
 
             let mut counter = 0;
 
@@ -147,18 +148,68 @@ fn get_rule(mut rule_num: u8) -> [bool; 8] {
     return rule;
 }
 
-fn mouse_button_input (buttons: Res<Input<MouseButton>>, 
+fn mouse_button_input_system (buttons: Res<Input<MouseButton>>, 
     mut cell_settings: ResMut<CellSettings>,
 ) {
     if buttons.just_pressed(MouseButton::Right) {
         cell_settings.rule_num -= 1;
         cell_settings.rule = get_rule(cell_settings.rule_num);
-        println!("{}", cell_settings.rule_num);
     }
     
     if buttons.just_pressed(MouseButton::Left) {
         cell_settings.rule_num += 1;
         cell_settings.rule = get_rule(cell_settings.rule_num);
-        println!("{}", cell_settings.rule_num);
+    }
+}
+
+fn key_press_system (
+    keys: Res<Input<KeyCode>>,
+    mut query: Query<(&mut Transform, &mut Sprite), With<Cell>>,
+    mut settings: ResMut<CellSettings>,
+) {
+    if keys.pressed(KeyCode::W) {
+        for (mut transform, _sprite) in query.iter_mut() {
+            transform.translation.y -= 1.0 * settings.cell_size;
+        }
+    }
+    
+    if keys.pressed(KeyCode::S) {
+        for (mut transform, _sprite) in query.iter_mut() {
+            transform.translation.y += 1.0 * settings.cell_size;
+        }
+    }
+
+    if keys.pressed(KeyCode::D) {
+        for (mut transform, _sprite) in query.iter_mut() {
+            transform.translation.x -= 1.0 * settings.cell_size;
+        }
+    }
+    
+    if keys.pressed(KeyCode::A) {
+        for (mut transform, _sprite) in query.iter_mut() {
+            transform.translation.x += 1.0 * settings.cell_size;
+        }
+    }
+    
+    let scale_multiplier:f32 = 1.2;
+    
+    if keys.pressed(KeyCode::Q) {
+        settings.cell_size *= scale_multiplier;
+        
+        for (mut transform, mut sprite) in query.iter_mut() {
+            sprite.custom_size = Some(Vec2::new(settings.cell_size, settings.cell_size));
+            transform.translation.x *= scale_multiplier;
+            transform.translation.y *= scale_multiplier;
+        }
+    }
+    
+    if keys.pressed(KeyCode::E) {
+        settings.cell_size /= scale_multiplier;
+        
+        for (mut transform, mut sprite) in query.iter_mut() {
+            sprite.custom_size = Some(Vec2::new(settings.cell_size, settings.cell_size));
+            transform.translation.x /= scale_multiplier;
+            transform.translation.y /= scale_multiplier;
+        }
     }
 }
