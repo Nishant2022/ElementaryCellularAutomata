@@ -1,11 +1,18 @@
 use bevy::prelude::*;
 use crate::WinSize;
 
+// region:      Enums
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum CellState {
     Alive,
     Dead,
 }
+
+// endregion:   Enums
+
+// region:      Components
+
 #[derive(Clone, Copy, Component)]
 pub struct Cell {
     state: CellState,
@@ -15,6 +22,10 @@ pub struct Cell {
 
 #[derive(Component)]
 struct CellLabel;
+
+// endregion:   Components
+
+// region:      Resources
 
 struct CellSettings {
     cell_size: f32,
@@ -29,6 +40,13 @@ struct CellGrid {
     grid: Vec<Vec<Cell>>,
 }
 
+struct RuleChanged {
+    updated_cell_grid: bool,
+    updated_sprites: bool,
+}
+
+// endregion:   Resources
+
 pub struct AutomataPlugin;
 
 impl Plugin for AutomataPlugin {
@@ -36,17 +54,19 @@ impl Plugin for AutomataPlugin {
         app
             .add_startup_system_to_stage(StartupStage::PostStartup ,cell_spawn_system)
             .add_system(update_cell_grid_system)
-            .add_system(color_grid_system)
+            .add_system(color_grid_system.after(update_cell_grid_system))
             .add_system(mouse_button_input_system)
             .add_system(key_press_system);
     }
 }
 
+// region:      Systems
+
 fn cell_spawn_system(mut commands: Commands, win_size: Res<WinSize>) {
 
     // num_cells defines the length and width of cell grid
     // should optimally be a value 2^n + 1
-    const NUM_CELLS: usize = 257;
+    const NUM_CELLS: usize = 129;
 
     // cell_size is the size of each cell
     let cell_size: f32 = win_size.w / NUM_CELLS as f32 * 2.0;
@@ -99,59 +119,83 @@ fn cell_spawn_system(mut commands: Commands, win_size: Res<WinSize>) {
         }
     }
     commands.insert_resource(cell_grid);
+
+    // Insert RuleChanged resource
+    commands.insert_resource(RuleChanged {
+        updated_cell_grid: false,
+        updated_sprites: false,
+    });
 }
 
 // System used to update CellGrid resouce 
-fn update_cell_grid_system(mut cell_grid: ResMut<CellGrid>, cell_settings: Res<CellSettings>) {
+fn update_cell_grid_system(
+    mut cell_grid: ResMut<CellGrid>, 
+    cell_settings: Res<CellSettings>, 
+    mut rule_changed: ResMut<RuleChanged>
+) {
     let num_cells = cell_settings.num_cells;
-   
-    // Go through first row of cells and set them to Dead
-    for i in 0..num_cells {
-        cell_grid.grid[i as usize][0].state = CellState::Dead;
-    }
 
-    // Set middle cell of first row to Alive
-    cell_grid.grid[(num_cells / 2) as usize][0].state = CellState::Alive;
+    if !rule_changed.updated_cell_grid {
 
-    // Go through each cell, row by row, skipping the first row,
-    // and determine whether a cell should be alive or dead given a rule
-    for j in 1..num_cells as usize {
-        for i in 0..num_cells as usize {
-
-            // Counter is used to index into the rule vec
-            let mut counter = 0;
-
-            if i != 0 && cell_grid.grid[i - 1][j - 1].state == CellState::Alive {
-                counter += 4;    
-            }
-            
-            if i != (num_cells - 1) as usize && cell_grid.grid[i + 1][j - 1].state == CellState::Alive {
-                counter += 2;
-            }
-            
-            if cell_grid.grid[i][j - 1].state == CellState::Alive {
-                counter += 1;   
-            }
-
-            // If the set rule states a cell should be alive, make it alive
-            // Otherwise make it dead
-            if cell_settings.rule[counter as usize] { cell_grid.grid[i][j].state = CellState::Alive}
-            else { cell_grid.grid[i][j].state = CellState::Dead }
-
+        // Go through first row of cells and set them to Dead
+        for i in 0..num_cells {
+            cell_grid.grid[i as usize][0].state = CellState::Dead;
         }
+    
+        // Set middle cell of first row to Alive
+        cell_grid.grid[(num_cells / 2) as usize][0].state = CellState::Alive;
+    
+        // Go through each cell, row by row, skipping the first row,
+        // and determine whether a cell should be alive or dead given a rule
+        for j in 1..num_cells as usize {
+            for i in 0..num_cells as usize {
+    
+                // Counter is used to index into the rule vec
+                let mut counter = 0;
+    
+                if i != 0 && cell_grid.grid[i - 1][j - 1].state == CellState::Alive {
+                    counter += 4;    
+                }
+                
+                if i != (num_cells - 1) as usize && cell_grid.grid[i + 1][j - 1].state == CellState::Alive {
+                    counter += 2;
+                }
+                
+                if cell_grid.grid[i][j - 1].state == CellState::Alive {
+                    counter += 1;   
+                }
+    
+                // If the set rule states a cell should be alive, make it alive
+                // Otherwise make it dead
+                if cell_settings.rule[counter as usize] { cell_grid.grid[i][j].state = CellState::Alive}
+                else { cell_grid.grid[i][j].state = CellState::Dead }
+    
+            }
+        }
+
+        rule_changed.updated_cell_grid = true;
     }
 }
 
 // System used to update sprites based on CellGrid Resource
-fn color_grid_system(mut query: Query<(&mut Sprite, &mut Cell)>, cell_grid: Res<CellGrid>, cell_settings: Res<CellSettings>) {
-    
-    // Iterate through all cells
-    for (mut sprite, mut cell) in query.iter_mut() {
-        cell.state = cell_grid.grid[cell.position_x as usize][cell.position_y as usize].state;
-        match cell.state {
-            CellState::Alive => sprite.color = cell_settings.alive_color,
-            CellState::Dead => sprite.color = cell_settings.dead_color,
+fn color_grid_system(
+    mut query: Query<(&mut Sprite, &mut Cell)>, 
+    cell_grid: Res<CellGrid>, 
+    cell_settings: Res<CellSettings>,
+    mut rule_changed: ResMut<RuleChanged>,
+) {
+    if !rule_changed.updated_sprites {
+
+        // Iterate through all cells
+        for (mut sprite, mut cell) in query.iter_mut() {
+            cell.state = cell_grid.grid[cell.position_x as usize][cell.position_y as usize].state;
+            match cell.state {
+                CellState::Alive => sprite.color = cell_settings.alive_color,
+                CellState::Dead => sprite.color = cell_settings.dead_color,
+            }
         }
+
+        rule_changed.updated_sprites = true;
     }
 }
 
@@ -173,17 +217,24 @@ fn get_rule(mut rule_num: u8) -> [bool; 8] {
 fn mouse_button_input_system (
     buttons: Res<Input<MouseButton>>, 
     mut cell_settings: ResMut<CellSettings>,
+    mut rule_changed: ResMut<RuleChanged>,
 ) {
     // Right mouse button decreases rule number
     if buttons.just_pressed(MouseButton::Right) {
         cell_settings.rule_num -= 1;
         cell_settings.rule = get_rule(cell_settings.rule_num);
+
+        rule_changed.updated_cell_grid = false;
+        rule_changed.updated_sprites = false;
     }
     
     // Left mouse button increases rule number
     if buttons.just_pressed(MouseButton::Left) {
         cell_settings.rule_num += 1;
         cell_settings.rule = get_rule(cell_settings.rule_num);
+
+        rule_changed.updated_cell_grid = false;
+        rule_changed.updated_sprites = false;
     }
 }
 
@@ -274,3 +325,5 @@ fn key_press_system (
         }
     }
 }
+
+// endregion:       Systems
