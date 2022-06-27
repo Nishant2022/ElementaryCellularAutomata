@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, input::mouse::{MouseWheel, MouseScrollUnit}};
 use rand::{distributions::Uniform, prelude::Distribution};
 use crate::WinSize;
 
@@ -54,11 +54,12 @@ pub struct AutomataPlugin;
 impl Plugin for AutomataPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_startup_system_to_stage(StartupStage::PostStartup ,cell_spawn_system)
+            .add_startup_system_to_stage(StartupStage::PostStartup, cell_spawn_system)
             .add_system(update_cell_grid_system)
             .add_system(color_grid_system.after(update_cell_grid_system))
             .add_system(mouse_button_input_system)
-            .add_system(key_press_system);
+            .add_system(key_press_system)
+            .add_system(mouse_scroll_system);
     }
 }
 
@@ -256,6 +257,7 @@ fn mouse_button_input_system (
         rule_changed.updated_sprites = false;
     }
 
+    // Middle mouse button pressed, toggle random first row
     if buttons.just_pressed(MouseButton::Middle) {
         cell_settings.random = !cell_settings.random;
         rule_changed.updated_cell_grid = false;
@@ -346,6 +348,36 @@ fn key_press_system (
                 sprite.custom_size = Some(Vec2::new(settings.cell_size, settings.cell_size));
                 transform.translation.x /= SCALE_MULTIPLIER;
                 transform.translation.y /= SCALE_MULTIPLIER;
+            }
+        }
+    }
+}
+
+// Handles mouse scroll events
+fn mouse_scroll_system (
+    mut scoll_evr: EventReader<MouseWheel>,
+    mut cell_settings: ResMut<CellSettings>,
+    mut rule_changed: ResMut<RuleChanged>,
+) {
+    for ev in scoll_evr.iter() {
+        match ev.unit {
+            
+            // If a desktop mouse is scrolled up or down, 
+            // increase or decrease the rule num
+            MouseScrollUnit::Line => {
+                if ev.y > 0.0 {
+                    cell_settings.rule_num += ev.y as u8;
+                }
+                else {
+                    cell_settings.rule_num -= (-1.0 * ev.y) as u8;
+                }
+                cell_settings.rule = get_rule(cell_settings.rule_num);
+
+                rule_changed.updated_cell_grid = false;
+                rule_changed.updated_sprites = false;        
+            }
+            MouseScrollUnit::Pixel => {
+
             }
         }
     }
