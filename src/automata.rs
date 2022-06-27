@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use rand::{distributions::Uniform, prelude::Distribution};
 use crate::WinSize;
 
 // region:      Enums
@@ -34,6 +35,7 @@ struct CellSettings {
     alive_color: Color,
     rule_num: u8,
     rule: [bool; 8],
+    random: bool,
 }
 
 struct CellGrid {
@@ -82,6 +84,7 @@ fn cell_spawn_system(mut commands: Commands, win_size: Res<WinSize>) {
         alive_color: Color::WHITE,
         rule_num: init_rule,
         rule: get_rule(init_rule),
+        random: false,
     });
 
     // Create cell grid
@@ -92,7 +95,7 @@ fn cell_spawn_system(mut commands: Commands, win_size: Res<WinSize>) {
         cell_grid.grid.push(Vec::new());
         for j in 0..NUM_CELLS {
             let x_pos =  -win_size.w / 1.0 + cell_size * i as f32;
-            let y_pos =  win_size.h / 1.0 - cell_size * j as f32;
+            let y_pos =  win_size.h / 2.0 - cell_size * j as f32;
 
             let new_cell = Cell {
                 state: CellState::Dead,
@@ -137,13 +140,29 @@ fn update_cell_grid_system(
 
     if !rule_changed.updated_cell_grid {
 
-        // Go through first row of cells and set them to Dead
-        for i in 0..num_cells {
-            cell_grid.grid[i as usize][0].state = CellState::Dead;
+        if cell_settings.random {
+            // Sets random values for first row
+            let mut rng = rand::thread_rng();
+            let coin = Uniform::from(0..2);
+            for i in 0..num_cells {
+                let value = coin.sample(&mut rng);
+                if value == 0 {
+                    cell_grid.grid[i as usize][0].state = CellState::Dead;
+                }
+                else {
+                    cell_grid.grid[i as usize][0].state = CellState::Alive;
+                }
+            }
         }
-    
-        // Set middle cell of first row to Alive
-        cell_grid.grid[(num_cells / 2) as usize][0].state = CellState::Alive;
+        else {
+            // Go through first row of cells and set them to Dead
+            for i in 0..num_cells {
+                cell_grid.grid[i as usize][0].state = CellState::Dead;
+            }
+            // Set middle cell of first row to Alive
+            cell_grid.grid[(num_cells / 2) as usize][0].state = CellState::Alive;
+        
+        }
     
         // Go through each cell, row by row, skipping the first row,
         // and determine whether a cell should be alive or dead given a rule
@@ -233,6 +252,12 @@ fn mouse_button_input_system (
         cell_settings.rule_num += 1;
         cell_settings.rule = get_rule(cell_settings.rule_num);
 
+        rule_changed.updated_cell_grid = false;
+        rule_changed.updated_sprites = false;
+    }
+
+    if buttons.just_pressed(MouseButton::Middle) {
+        cell_settings.random = !cell_settings.random;
         rule_changed.updated_cell_grid = false;
         rule_changed.updated_sprites = false;
     }
