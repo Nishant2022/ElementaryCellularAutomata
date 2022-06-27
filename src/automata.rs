@@ -60,6 +60,11 @@ impl Plugin for AutomataPlugin {
             .add_system(mouse_button_input_system)
             .add_system(key_press_system)
             .add_system(mouse_scroll_system);
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            app.add_plugin(bevy_web_resizer::Plugin);
+        }
     }
 }
 
@@ -361,7 +366,7 @@ fn mouse_scroll_system (
 ) {
     for ev in scoll_evr.iter() {
         match ev.unit {
-            
+
             // If a desktop mouse is scrolled up or down, 
             // increase or decrease the rule num
             MouseScrollUnit::Line => {
