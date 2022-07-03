@@ -1,4 +1,4 @@
-use bevy::{prelude::*, input::mouse::{MouseWheel, MouseScrollUnit}};
+use bevy::{prelude::*, input::mouse::{MouseWheel, MouseScrollUnit}, window::WindowResized, ecs::event::Events};
 use rand::{distributions::Uniform, prelude::Distribution};
 use crate::{WinSize, 
     automaton::{
@@ -316,6 +316,32 @@ pub fn mouse_scroll_system (
             }
         }
     }
+}
+
+// Window resize system
+// System moves cells so that the top of the automaton
+// stays at the top when the window is resized
+pub fn window_resize_system(
+    resize_event: Res<Events<WindowResized>>, 
+    mut win_size: ResMut<WinSize>,
+    mut query: Query<&mut Transform, With<Cell>>,
+) {
+
+    // Initial height of window
+    let init_height: f32 = win_size.h;
+
+    // Checks for resize event and updates win_size resource
+    let mut reader = resize_event.get_reader();
+    for e in reader.iter(&resize_event) {
+        win_size.w = e.width;
+        win_size.h = e.height;
+    }
+
+    // Moves all cells by half of change in height
+    for mut transform in query.iter_mut() {
+        transform.translation.y += (win_size.h - init_height) / 2.0;
+    }
+
 }
 
 // endregion:       Systems

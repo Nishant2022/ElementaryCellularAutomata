@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use self::systems::{cell_spawn_system, update_cell_grid_system, color_grid_system, mouse_button_input_system, key_press_system, mouse_scroll_system};
+use self::systems::{cell_spawn_system, update_cell_grid_system, color_grid_system, mouse_button_input_system, key_press_system, mouse_scroll_system, window_resize_system};
 
 mod components;
 mod enums;
@@ -17,7 +17,8 @@ impl Plugin for AutomataPlugin {
             .add_system(color_grid_system.after(update_cell_grid_system))
             .add_system(mouse_button_input_system)
             .add_system(key_press_system)
-            .add_system(mouse_scroll_system);
+            .add_system(mouse_scroll_system)
+            .add_system(window_resize_system);
 
         #[cfg(target_arch = "wasm32")]
         {
