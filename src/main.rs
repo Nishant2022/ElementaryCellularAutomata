@@ -1,7 +1,9 @@
 use automaton::AutomataPlugin;
 use bevy::prelude::*;
+use text::TextPlugin;
 
 mod automaton;
+mod text;
 
 // section:      resouces
 
@@ -22,6 +24,7 @@ fn main() {
         })
         .add_plugins(DefaultPlugins)
         .add_plugin(AutomataPlugin)
+        .add_plugin(TextPlugin)
         .add_startup_system(setup_system)
         .run();
 }

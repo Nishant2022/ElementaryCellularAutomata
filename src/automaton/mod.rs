@@ -6,7 +6,7 @@ mod components;
 mod enums;
 mod resources;
 mod systems;
-mod events;
+pub mod events;
 pub struct AutomataPlugin;
 
 impl Plugin for AutomataPlugin {
