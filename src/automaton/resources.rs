@@ -19,9 +19,4 @@ pub struct CellGrid {
     pub grid: Vec<Vec<Cell>>,
 }
 
-pub struct RuleChanged {
-    pub updated_cell_grid: bool,
-    pub updated_sprites: bool,
-}
-
 // endregion:   Resources

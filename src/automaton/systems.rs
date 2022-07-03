@@ -5,16 +5,21 @@ use crate::{WinSize,
         enums::CellState, 
         resources::{
             CellSettings, 
-            CellGrid, 
-            RuleChanged
+            CellGrid,
         },
         components::Cell,
     }
 };
 
+use super::events::RuleChangeEvent;
+
 // region:      Systems
 
-pub fn cell_spawn_system(mut commands: Commands, win_size: Res<WinSize>) {
+pub fn cell_spawn_system(
+    mut commands: Commands, 
+    win_size: Res<WinSize>,
+    mut event_writer: EventWriter<RuleChangeEvent>,
+) {
 
     // num_cells defines the length and width of cell grid
     // should optimally be a value 2^n + 1
@@ -73,10 +78,8 @@ pub fn cell_spawn_system(mut commands: Commands, win_size: Res<WinSize>) {
     }
     commands.insert_resource(cell_grid);
 
-    // Insert RuleChanged resource
-    commands.insert_resource(RuleChanged {
-        updated_cell_grid: false,
-        updated_sprites: false,
+    event_writer.send(RuleChangeEvent {
+        new_rule: init_rule
     });
 }
 
@@ -84,12 +87,11 @@ pub fn cell_spawn_system(mut commands: Commands, win_size: Res<WinSize>) {
 pub fn update_cell_grid_system(
     mut cell_grid: ResMut<CellGrid>, 
     cell_settings: Res<CellSettings>, 
-    mut rule_changed: ResMut<RuleChanged>
+    mut rule_changed: EventReader<RuleChangeEvent>,
 ) {
     let num_cells = cell_settings.num_cells;
 
-    if !rule_changed.updated_cell_grid {
-
+    for _event in rule_changed.iter() {
         if cell_settings.random {
             // Sets random values for first row
             let mut rng = rand::thread_rng();
@@ -141,8 +143,6 @@ pub fn update_cell_grid_system(
     
             }
         }
-
-        rule_changed.updated_cell_grid = true;
     }
 }
 
@@ -151,9 +151,9 @@ pub fn color_grid_system(
     mut query: Query<(&mut Sprite, &mut Cell)>, 
     cell_grid: Res<CellGrid>, 
     cell_settings: Res<CellSettings>,
-    mut rule_changed: ResMut<RuleChanged>,
+    mut rule_changed: EventReader<RuleChangeEvent>,
 ) {
-    if !rule_changed.updated_sprites {
+    for _event in rule_changed.iter() {
 
         // Iterate through all cells
         for (mut sprite, mut cell) in query.iter_mut() {
@@ -163,8 +163,6 @@ pub fn color_grid_system(
                 CellState::Dead => sprite.color = cell_settings.dead_color,
             }
         }
-
-        rule_changed.updated_sprites = true;
     }
 }
 
@@ -172,15 +170,14 @@ pub fn color_grid_system(
 pub fn mouse_button_input_system (
     buttons: Res<Input<MouseButton>>, 
     mut cell_settings: ResMut<CellSettings>,
-    mut rule_changed: ResMut<RuleChanged>,
+    mut rule_changed: EventWriter<RuleChangeEvent>
 ) {
     // Right mouse button decreases rule number
     if buttons.just_pressed(MouseButton::Right) {
         cell_settings.rule_num -= 1;
         cell_settings.rule = get_rule(cell_settings.rule_num);
 
-        rule_changed.updated_cell_grid = false;
-        rule_changed.updated_sprites = false;
+        rule_changed.send(RuleChangeEvent { new_rule: cell_settings.rule_num });
     }
     
     // Left mouse button increases rule number
@@ -188,15 +185,14 @@ pub fn mouse_button_input_system (
         cell_settings.rule_num += 1;
         cell_settings.rule = get_rule(cell_settings.rule_num);
 
-        rule_changed.updated_cell_grid = false;
-        rule_changed.updated_sprites = false;
+        rule_changed.send(RuleChangeEvent { new_rule: cell_settings.rule_num });
     }
 
     // Middle mouse button pressed, toggle random first row
     if buttons.just_pressed(MouseButton::Middle) {
-        cell_settings.random = !cell_settings.random;
-        rule_changed.updated_cell_grid = false;
-        rule_changed.updated_sprites = false;
+        cell_settings.random = !cell_settings.random;   
+
+        rule_changed.send(RuleChangeEvent { new_rule: cell_settings.rule_num });
     }
 }
 
@@ -292,7 +288,7 @@ pub fn key_press_system (
 pub fn mouse_scroll_system (
     mut scoll_evr: EventReader<MouseWheel>,
     mut cell_settings: ResMut<CellSettings>,
-    mut rule_changed: ResMut<RuleChanged>,
+    mut rule_changed: EventWriter<RuleChangeEvent>,
 ) {
     for ev in scoll_evr.iter() {
         match ev.unit {
@@ -307,9 +303,8 @@ pub fn mouse_scroll_system (
                     cell_settings.rule_num -= (-1.0 * ev.y) as u8;
                 }
                 cell_settings.rule = get_rule(cell_settings.rule_num);
-
-                rule_changed.updated_cell_grid = false;
-                rule_changed.updated_sprites = false;        
+                
+                rule_changed.send(RuleChangeEvent { new_rule: cell_settings.rule_num });
             }
             MouseScrollUnit::Pixel => {
 
