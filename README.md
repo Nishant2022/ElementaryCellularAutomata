@@ -44,5 +44,5 @@ To build for web run:
 rustup target add wasm32-unknown-unknown
 cargo install wasm-bindgen-cli
 cargo build --release --target wasm32-unknown-unknown
-wasm-bindgen --out-name boids --out-dir wasm --target web target/wasm32-unknown-unknown/release/boids.wasm
+wasm-bindgen --out-name elementary-cellular-automaton --out-dir wasm --target web target/wasm32-unknown-unknown/release/elementary-cellular-automaton.wasm
 ```
