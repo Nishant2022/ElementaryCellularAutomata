@@ -1,7 +1,7 @@
-use automata::AutomataPlugin;
+use automaton::AutomataPlugin;
 use bevy::prelude::*;
 
-mod automata;
+mod automaton;
 
 // section:      resouces
 
