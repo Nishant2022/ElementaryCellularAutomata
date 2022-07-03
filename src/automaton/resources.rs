@@ -1,4 +1,6 @@
 
+use std::num::Wrapping;
+
 use bevy::prelude::Color;
 
 use super::components::Cell;
@@ -10,7 +12,7 @@ pub struct CellSettings {
     pub num_cells: u32,
     pub dead_color: Color,
     pub alive_color: Color,
-    pub rule_num: u8,
+    pub rule_num: Wrapping<u8>,
     pub rule: [bool; 8],
     pub random: bool,
 }

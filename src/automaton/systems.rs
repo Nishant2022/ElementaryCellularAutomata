@@ -1,3 +1,5 @@
+use std::num::Wrapping;
+
 use bevy::{prelude::*, input::mouse::{MouseWheel, MouseScrollUnit}, window::WindowResized, ecs::event::Events};
 use rand::{distributions::Uniform, prelude::Distribution};
 use crate::{WinSize, 
@@ -37,7 +39,7 @@ pub fn cell_spawn_system(
         num_cells: NUM_CELLS as u32,
         dead_color: Color::BLACK,
         alive_color: Color::WHITE,
-        rule_num: init_rule,
+        rule_num: Wrapping(init_rule),
         rule: get_rule(init_rule),
         random: false,
     });
@@ -175,24 +177,24 @@ pub fn mouse_button_input_system (
     // Right mouse button decreases rule number
     if buttons.just_pressed(MouseButton::Right) {
         cell_settings.rule_num -= 1;
-        cell_settings.rule = get_rule(cell_settings.rule_num);
+        cell_settings.rule = get_rule(cell_settings.rule_num.0);
 
-        rule_changed.send(RuleChangeEvent { new_rule: cell_settings.rule_num });
+        rule_changed.send(RuleChangeEvent { new_rule: cell_settings.rule_num.0 });
     }
     
     // Left mouse button increases rule number
     if buttons.just_pressed(MouseButton::Left) {
         cell_settings.rule_num += 1;
-        cell_settings.rule = get_rule(cell_settings.rule_num);
+        cell_settings.rule = get_rule(cell_settings.rule_num.0 );
 
-        rule_changed.send(RuleChangeEvent { new_rule: cell_settings.rule_num });
+        rule_changed.send(RuleChangeEvent { new_rule: cell_settings.rule_num.0 });
     }
 
     // Middle mouse button pressed, toggle random first row
     if buttons.just_pressed(MouseButton::Middle) {
         cell_settings.random = !cell_settings.random;   
 
-        rule_changed.send(RuleChangeEvent { new_rule: cell_settings.rule_num });
+        rule_changed.send(RuleChangeEvent { new_rule: cell_settings.rule_num.0 });
     }
 }
 
@@ -302,9 +304,9 @@ pub fn mouse_scroll_system (
                 else {
                     cell_settings.rule_num -= (-1.0 * ev.y) as u8;
                 }
-                cell_settings.rule = get_rule(cell_settings.rule_num);
+                cell_settings.rule = get_rule(cell_settings.rule_num.0);
                 
-                rule_changed.send(RuleChangeEvent { new_rule: cell_settings.rule_num });
+                rule_changed.send(RuleChangeEvent { new_rule: cell_settings.rule_num.0 });
             }
             MouseScrollUnit::Pixel => {
 
