@@ -15,6 +15,15 @@ use crate::{WinSize,
 
 use super::events::RuleChangeEvent;
 
+// region:      Constants
+
+// Constants for scaling
+const SCALE_MULTIPLIER: f32 = 1.02;
+const MAX_CELL_SIZE: f32 = 100.;
+const MIN_CELL_SIZE: f32 = 1.;
+
+// endregion:   Constants
+
 // region:      Systems
 
 pub fn cell_spawn_system(
@@ -232,57 +241,14 @@ pub fn key_press_system (
         }
     }
     
-    // Constants for scaling
-    const SCALE_MULTIPLIER: f32 = 1.02;
-    const MAX_CELL_SIZE: f32 = 100.;
-    const MIN_CELL_SIZE: f32 = 1.;
-    
     // If Q is pressed, zooom in
     if keys.pressed(KeyCode::Q) {
-        
-        // Change cell_size by scale multiplier
-        // If cells reach max size, do not scale anymore
-        let mut changed: bool = true;
-        settings.cell_size *= SCALE_MULTIPLIER;
-        if settings.cell_size > MAX_CELL_SIZE {
-            settings.cell_size = MAX_CELL_SIZE;
-            changed = false;
-        }
-
-        // If cells are max size, do not scale
-        if changed {
-            for (mut transform, mut sprite) in query.iter_mut() {
-                
-                // First update scale then reposition cells
-                sprite.custom_size = Some(Vec2::new(settings.cell_size, settings.cell_size));
-                transform.translation.x *= SCALE_MULTIPLIER;
-                transform.translation.y *= SCALE_MULTIPLIER;
-            }
-        }
+        scale(&mut settings, &mut query, SCALE_MULTIPLIER, (0., 0.));
     }
     
     // If E is pressed, zoom out
     if keys.pressed(KeyCode::E) {
-
-        // Change cell_size by scale multiplier
-        // If cells reach min size, do not scale anymore
-        let mut changed: bool = true;
-        settings.cell_size /= SCALE_MULTIPLIER;
-        if settings.cell_size < MIN_CELL_SIZE {
-            settings.cell_size = MIN_CELL_SIZE;
-            changed = false;
-        }
-        
-        // If cells are min size, do not scale
-        if changed {
-            for (mut transform, mut sprite) in query.iter_mut() {
-                
-                // First update scale then reposition cells
-                sprite.custom_size = Some(Vec2::new(settings.cell_size, settings.cell_size));
-                transform.translation.x /= SCALE_MULTIPLIER;
-                transform.translation.y /= SCALE_MULTIPLIER;
-            }
-        }
+        scale(&mut settings, &mut query, 1.0 / SCALE_MULTIPLIER, (0., 0.));
     }
 }
 
@@ -321,11 +287,12 @@ pub fn mouse_scroll_system (
 pub fn window_resize_system(
     resize_event: Res<Events<WindowResized>>, 
     mut win_size: ResMut<WinSize>,
-    mut query: Query<&mut Transform, With<Cell>>,
+    mut query: Query<(&mut Transform, &mut Sprite), With<Cell>>,
+    mut settings: ResMut<CellSettings>,
 ) {
 
     // Initial height of window
-    let init_height: f32 = win_size.h;
+    let (init_width, init_height) = (win_size.w, win_size.h);
 
     // Checks for resize event and updates win_size resource
     let mut reader = resize_event.get_reader();
@@ -335,7 +302,7 @@ pub fn window_resize_system(
     }
 
     // Moves all cells by half of change in height
-    for mut transform in query.iter_mut() {
+    for (mut transform, _sprite) in query.iter_mut() {
         transform.translation.y += (win_size.h - init_height) / 2.0;
     }
 
@@ -356,3 +323,38 @@ fn get_rule(mut rule_num: u8) -> [bool; 8] {
 
     return rule;
 }
+
+fn scale(
+    settings: &mut CellSettings,
+    query: &mut Query<(&mut Transform, &mut Sprite), With<Cell>>,
+    scale_multiplier: f32,
+    center: (f32, f32),
+) {
+    
+    // Change cell_size by scale multiplier
+    // If cells reach max size, do not scale anymore
+    let mut changed: bool = true;
+    settings.cell_size *= scale_multiplier;
+    if settings.cell_size > MAX_CELL_SIZE {
+        settings.cell_size = MAX_CELL_SIZE;
+        changed = false;
+    }
+
+    // If cells reach min size, do not scale anymore
+    if settings.cell_size < MIN_CELL_SIZE {
+        settings.cell_size = MIN_CELL_SIZE;
+        changed = false;
+    }
+
+    // If cells are max size, do not scale
+    if changed {
+        for (mut transform, mut sprite) in query.iter_mut() {
+            
+            // First update scale then reposition cells
+            sprite.custom_size = Some(Vec2::new(settings.cell_size, settings.cell_size));
+            transform.translation.x = (transform.translation.x - center.0) * scale_multiplier + center.0;
+            transform.translation.y = (transform.translation.y - center.1) * scale_multiplier + center.1;
+        }
+    }
+}
+
