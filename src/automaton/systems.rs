@@ -301,6 +301,10 @@ pub fn window_resize_system(
         win_size.h = e.height;
     }
 
+    // Cells scale as the width of the screen changes
+    let multiplier: f32 = win_size.w / init_width;
+    scale(&mut settings, &mut query, multiplier, (0., win_size.h / 2.));
+
     // Moves all cells by half of change in height
     for (mut transform, _sprite) in query.iter_mut() {
         transform.translation.y += (win_size.h - init_height) / 2.0;
